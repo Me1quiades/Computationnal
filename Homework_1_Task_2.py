@@ -2,17 +2,19 @@
 import numpy as np
 from scipy.sparse import diags
 from scipy.sparse.linalg import eigs
+import matplotlib.pyplot as plt
+
 
 #2D Example Parameters
 grid_size     = 120
-number_points = 3
+number_points = 301
 h             = grid_size/(number_points - 1)
 lam           = 0.78
 k0            = 2*np.pi/lam
 e_substrate   = 2.25
 delta_e       = 1.5e-2
 w             = 15.0
-xx            = np.linspace(-grid_size/2-h,grid_size/2+h,number_points+2)
+xx            = np.linspace(-grid_size/2-h,grid_size/2+h,number_points)#+2
 yy            = np.linspace(-grid_size/2,grid_size/2,number_points)
 XX,YY         = np.meshgrid(xx,yy)
 prm           = e_substrate + delta_e * np.exp(-(XX**2+YY**2)/w**2)
@@ -58,17 +60,31 @@ def guided_modes_2D(prm, k0, h):
 
     lap_mat=diags(diagonals, [0, -1, 1, -nps, nps], shape=(total_points, total_points))
 
-    eigenvalues, eigenvectors=eigs(lap_mat)
-    eff_eps=eigenvalues[(eigenvalues<prm_max)&(eigenvalues>e_substrate)]
+    eigenvalues, eigenvectors=eigs(lap_mat, k=10)
+
+    val_indices=(eigenvalues<prm_max)&(eigenvalues>e_substrate)
+    eff_eps=eigenvalues[val_indices]
+    val_eigvecs=eigenvectors[:, val_indices]
+
     guided=[]
-    for i in eff_eps:
-        indices = np.where(np.isclose(eigenvalues, i))[0]
-    for index in indices:
-        guided.append(eigenvectors[:, index])
+    for val_eigvec in val_eigvecs.T:
+        guided.append(val_eigvec.reshape(nps, nps))
 
     return eff_eps, guided
 
 effective_permittivities, field_distributions = guided_modes_2D(prm, k0, h)
 print(effective_permittivities)
 
+#2D
+#for field in field_distributions:
+#    plt.figure()
+#    plt.imshow(np.abs(field), extent=(xx.min(), xx.max(), yy.min(), yy.max()), cmap='viridis')
+#    plt.show()
 
+#3D
+
+for index, field in enumerate(field_distributions):
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    surf = ax.plot_surface(XX, YY, np.abs(field), cmap='viridis')
+    plt.show()
